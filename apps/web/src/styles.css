@@ -389,3 +389,73 @@ body {
 .segmented button.on {
   background: var(--sun);
 }
+
+/* Konto-Knopf oben (Anfangsbuchstabe) */
+.avatar {
+  margin-left: auto;
+  margin-right: 8px;
+  min-width: 44px;
+  background: var(--mint);
+}
+
+/* Formulare: Anmelden, Registrieren */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  max-width: 420px;
+  margin: 16px auto 0;
+}
+.form h1 {
+  margin: 0 0 4px;
+}
+.form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-weight: 700;
+}
+.form small {
+  font-weight: 400;
+  opacity: 0.7;
+}
+.form input:not([type="checkbox"]) {
+  font: inherit;
+  font-size: 17px; /* ab 16px zoomt iOS nicht ins Feld */
+  padding: 12px 14px;
+  border: 3px solid var(--ink);
+  border-radius: 14px;
+  background: #fff;
+  color: var(--ink);
+}
+.form .check {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+}
+.form .check input {
+  width: 26px;
+  height: 26px;
+  accent-color: var(--coral);
+}
+
+.linkbox {
+  word-break: break-all;
+  background: #fff;
+  border: 2px dashed var(--ink);
+  border-radius: 12px;
+  padding: 10px;
+  font-size: 14px;
+  user-select: all;
+  -webkit-user-select: all;
+}
+.row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.lab > .btn {
+  margin-top: 8px;
+}

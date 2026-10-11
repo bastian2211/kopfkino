@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { pickMimeType, type Engine } from "./recorder";
-import { t, type Lang } from "./i18n";
+import { errText, t, type Lang } from "./i18n";
+import { api, errorCode } from "./api";
 
 const TEST_VIDEO = "/test/kopfkino-test.mp4";
 
@@ -176,6 +177,104 @@ function EnginePicker({ lang, engine, onEngine }: { lang: Lang; engine: Engine; 
   );
 }
 
+
+function urlBase64ToUint8Array(base64: string): Uint8Array<ArrayBuffer> {
+  const padded = (base64 + "=".repeat((4 - (base64.length % 4)) % 4)).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = atob(padded);
+  const out = new Uint8Array(new ArrayBuffer(raw.length));
+  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+  return out;
+}
+
+// Push-Test: Erlaubnis holen, Gerät beim Server anmelden, Testnachricht anfordern
+function Push({ lang }: { lang: Lang }) {
+  const supported = "Notification" in window && "serviceWorker" in navigator && "PushManager" in window;
+  const [subscribed, setSubscribed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
+  const [isError, setIsError] = useState(false);
+
+  useEffect(() => {
+    if (!supported) return;
+    void navigator.serviceWorker.ready
+      .then((reg) => reg.pushManager.getSubscription())
+      .then((sub) => setSubscribed(!!sub && Notification.permission === "granted"));
+  }, [supported]);
+
+  const say = (text: string, error = false) => {
+    setStatus(text);
+    setIsError(error);
+  };
+
+  const enable = async () => {
+    setBusy(true);
+    say("");
+    try {
+      // Erlaubnis MUSS direkt aus dem Tippen heraus angefragt werden (iOS)
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") {
+        say(t(lang, "pushDenied"), true);
+        return;
+      }
+      const key = await api<{ enabled: boolean; publicKey: string | null }>("/api/push/key");
+      if (!key.enabled || !key.publicKey) {
+        say(errText(lang, "push_disabled"), true);
+        return;
+      }
+      const reg = await navigator.serviceWorker.ready;
+      const sub =
+        (await reg.pushManager.getSubscription()) ??
+        (await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(key.publicKey),
+        }));
+      await api("/api/push/subscribe", { body: sub.toJSON() });
+      setSubscribed(true);
+      say(t(lang, "pushOn"));
+    } catch (err) {
+      const code = errorCode(err);
+      say(code === "unknown" ? `${t(lang, "error")}: ${err instanceof Error ? err.message : String(err)}` : errText(lang, code), true);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const test = async () => {
+    setBusy(true);
+    try {
+      await api("/api/push/test", { body: { delay: 5 } });
+      say(t(lang, "pushSent"));
+    } catch (err) {
+      say(errText(lang, errorCode(err)), true);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="card">
+      <h2>{t(lang, "pushTitle")}</h2>
+      {!supported ? (
+        <p className="err">{t(lang, "pushNeedsInstall")}</p>
+      ) : (
+        <>
+          <p className="hint">{t(lang, "pushHint")}</p>
+          {!subscribed ? (
+            <button className="btn btn--coral" onClick={enable} disabled={busy}>
+              {busy ? "…" : t(lang, "pushEnable")}
+            </button>
+          ) : (
+            <button className="btn btn--coral" onClick={test} disabled={busy}>
+              {busy ? "…" : t(lang, "pushTest")}
+            </button>
+          )}
+        </>
+      )}
+      {status && <p className={isError ? "err" : "ok"}>{status}</p>}
+    </section>
+  );
+}
+
 export function Lab({
   lang,
   engine,
@@ -197,6 +296,7 @@ export function Lab({
       <Camera lang={lang} />
       <Share lang={lang} />
       <DeviceInfo lang={lang} />
+      <Push lang={lang} />
     </div>
   );
 }

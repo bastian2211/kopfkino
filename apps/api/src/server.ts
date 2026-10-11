@@ -1,45 +1,81 @@
+import cookie from "@fastify/cookie";
+import rateLimit from "@fastify/rate-limit";
 import Fastify from "fastify";
-import pg from "pg";
+import { loadUserFromToken, readToken } from "./auth.js";
 import { loadConfig } from "./config.js";
+import { createPool, migrate } from "./db.js";
+import { authRoutes } from "./routes/auth.js";
+import { createPusher, pushRoutes } from "./routes/push.js";
 
 export async function buildServer() {
   const config = loadConfig();
-  const pool = new pg.Pool({ connectionString: config.DATABASE_URL, max: 5 });
+  const db = createPool(config.DATABASE_URL);
 
   const app = Fastify({
-    logger: { level: config.NODE_ENV === "production" ? "info" : "debug" },
-    // Hinter Caddy: echte Client-IP aus X-Forwarded-For übernehmen (wichtig für spätere Rate-Limits).
+    logger: {
+      level: config.NODE_ENV === "production" ? "info" : "debug",
+      // Zugangsdaten nie ins Log schreiben
+      redact: ["req.headers.authorization", "req.headers.cookie", "res.headers['set-cookie']"],
+    },
+    // Hinter Caddy: echte Client-IP aus X-Forwarded-For übernehmen (wichtig für Rate-Limits)
     trustProxy: true,
+    bodyLimit: 1024 * 1024,
   });
 
+  await app.register(cookie);
+  // Global großzügig; strengere Grenzen setzen einzelne Routen selbst
+  await app.register(rateLimit, { global: true, max: 300, timeWindow: "1 minute" });
+
   app.addHook("onClose", async () => {
-    await pool.end();
+    await db.end();
+  });
+
+  const appOrigin = new URL(config.APP_URL).origin;
+
+  app.addHook("onRequest", async (req, reply) => {
+    const t = readToken(req);
+    // Schutz gegen fremde Webseiten (CSRF): ändernde Anfragen mit Cookie nur von der eigenen Seite
+    if (t?.via === "cookie" && !["GET", "HEAD", "OPTIONS"].includes(req.method)) {
+      const origin = req.headers.origin;
+      if (origin && origin !== appOrigin && config.NODE_ENV === "production") {
+        return reply.code(403).send({ error: "bad_origin" });
+      }
+    }
+    if (t) {
+      const user = await loadUserFromToken(db, t.token);
+      if (user) req.user = user;
+    }
   });
 
   // Health-Check: prüft auch die Datenbank. Wird von Docker und vom Frontend genutzt.
-  app.get("/api/health", async (_req, reply) => {
-    let db: "ok" | "error" = "ok";
+  app.get("/api/health", { config: { rateLimit: false } }, async (_req, reply) => {
+    let dbState: "ok" | "error" = "ok";
     try {
-      await pool.query("select 1");
+      await db.query("select 1");
     } catch (err) {
       app.log.error({ err }, "Datenbank nicht erreichbar");
-      db = "error";
+      dbState = "error";
     }
-    const ok = db === "ok";
+    const ok = dbState === "ok";
     return reply.code(ok ? 200 : 503).send({
       status: ok ? "ok" : "degraded",
-      db,
+      db: dbState,
       version: config.APP_VERSION,
       time: new Date().toISOString(),
     });
   });
 
-  return { app, config };
+  const pusher = createPusher(db, config, app.log);
+  authRoutes(app, db, config);
+  pushRoutes(app, db, config, pusher);
+
+  return { app, config, db };
 }
 
 const isEntry = import.meta.url === `file://${process.argv[1]}`;
 if (isEntry) {
-  const { app, config } = await buildServer();
+  const { app, config, db } = await buildServer();
+  await migrate(db, (m) => app.log.info(m));
   const shutdown = async (signal: string) => {
     app.log.info(`${signal} empfangen, fahre herunter`);
     await app.close();

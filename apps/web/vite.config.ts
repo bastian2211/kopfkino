@@ -27,10 +27,12 @@ export default defineConfig({
           { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
         ],
       },
-      workbox: {
-        // API-Aufrufe nie aus dem Cache bedienen – Guthaben, Jobs und Status müssen live sein.
-        navigateFallbackDenylist: [/^\/api\//, /^\/test\//],
-        runtimeCaching: [],
+      // Eigener Service Worker (src/sw.ts) – nötig für Push-Nachrichten
+      strategies: "injectManifest",
+      srcDir: "src",
+      filename: "sw.ts",
+      injectManifest: {
+        globPatterns: ["**/*.{js,css,html,svg,png,webmanifest}"],
       },
     }),
   ],

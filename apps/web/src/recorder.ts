@@ -9,11 +9,13 @@ const WAV_SAMPLE_RATE = 16_000; // reicht für Spracherkennung, hält die Datei 
 export type Engine = "mediarecorder" | "wav";
 const ENGINE_KEY = "kopfkino.recEngine";
 
+// Standard ist WAV: MediaRecorder liefert auf iOS ab der 2. Aufnahme nur Bruchstücke
+// (getestet am 11.10.2026 auf iPhone 15 Pro). MediaRecorder bleibt im Technik-Test wählbar.
 export function loadEngine(): Engine {
   try {
-    return localStorage.getItem(ENGINE_KEY) === "wav" ? "wav" : "mediarecorder";
+    return localStorage.getItem(ENGINE_KEY) === "mediarecorder" ? "mediarecorder" : "wav";
   } catch {
-    return "mediarecorder";
+    return "wav";
   }
 }
 

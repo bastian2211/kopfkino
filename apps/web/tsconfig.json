@@ -8,5 +8,6 @@
     "types": ["vite/client", "vite-plugin-pwa/client"],
     "noEmit": true
   },
-  "include": ["src", "vite.config.ts"]
+  "include": ["src", "vite.config.ts"],
+  "exclude": ["src/sw.ts", "src/sw-env.d.ts"]
 }

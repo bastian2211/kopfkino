@@ -2,6 +2,12 @@ import { useEffect, useState } from "react";
 import { initialLang, saveLang, t, type Lang, type TextKey } from "./i18n";
 import { formatBytes, loadEngine, MAX_SECONDS, saveEngine, useRecorder, type Engine, type RecorderError } from "./recorder";
 import { Lab } from "./Lab";
+import { Account, Login, Register } from "./Auth";
+import { api, type Me } from "./api";
+
+function readInviteCode(): string | null {
+  return new URLSearchParams(window.location.search).get("invite");
+}
 
 type ServerState = "checking" | "ok" | "down";
 
@@ -23,7 +29,27 @@ export function App() {
   const [lang, setLang] = useState<Lang>(initialLang);
   const [server, setServer] = useState<ServerState>("checking");
   const [version, setVersion] = useState<string>("");
-  const [view, setView] = useState<"home" | "lab">("home");
+  const [view, setView] = useState<"home" | "lab" | "account">("home");
+  // undefined = wird geladen, null = nicht angemeldet
+  const [me, setMe] = useState<Me | null | undefined>(undefined);
+  const [invite, setInvite] = useState<string | null>(readInviteCode);
+
+  const loadMe = () =>
+    api<Me>("/api/me")
+      .then(setMe)
+      .catch(() => setMe(null));
+
+  useEffect(() => {
+    void loadMe();
+  }, []);
+
+  const afterAuth = () => {
+    // Einladungscode aus der Adresse entfernen, damit er nicht im Verlauf bleibt
+    if (invite) window.history.replaceState(null, "", "/");
+    setInvite(null);
+    setView("home");
+    void loadMe();
+  };
   const [engine, setEngineState] = useState<Engine>(loadEngine);
   const setEngine = (e: Engine) => {
     setEngineState(e);
@@ -79,12 +105,33 @@ export function App() {
     <main className="screen">
       <header className="topbar">
         <span className="logo">Kopfkino</span>
+        {me && view === "home" && (
+          <button className="lang avatar" onClick={() => setView("account")} aria-label={t(lang, "account")}>
+            {me.displayName.slice(0, 1).toUpperCase()}
+          </button>
+        )}
         <button className="lang" onClick={switchLang} aria-label="Sprache wechseln / switch language">
           {lang === "de" ? "EN" : "DE"}
         </button>
       </header>
 
-      {view === "lab" ? (
+      {invite && !me ? (
+        <Register lang={lang} code={invite} onDone={afterAuth} />
+      ) : me === undefined ? (
+        <p className="hint center">…</p>
+      ) : me === null ? (
+        <Login lang={lang} onDone={afterAuth} />
+      ) : view === "account" ? (
+        <Account
+          lang={lang}
+          me={me}
+          onBack={() => setView("home")}
+          onLogout={() => {
+            setMe(null);
+            setView("home");
+          }}
+        />
+      ) : view === "lab" ? (
         <Lab lang={lang} engine={engine} onEngine={setEngine} onBack={() => setView("home")} />
       ) : (
         <section className="center">
@@ -140,7 +187,7 @@ export function App() {
           {" · "}App {__APP_VERSION__.replace("sha-", "")}
           {version && version !== __APP_VERSION__ ? ` · Server ${version.replace("sha-", "")}` : ""}
         </span>
-        {view === "home" && (
+        {me && view === "home" && (
           <>
             {" · "}
             <button className="linkbtn" onClick={() => setView("lab")}>
