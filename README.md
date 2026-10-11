@@ -45,6 +45,8 @@ Repository → Settings → Environments → `production` anlegen, dort diese Se
 | `DEPLOY_SSH_KEY` | privater Schlüssel des Deploy-Schlüsselpaars |
 | `DEPLOY_KNOWN_HOSTS` | Ausgabe von `ssh-keyscan -t ed25519 <host>` |
 
+Danach unter Settings → Secrets and variables → Actions → **Variables** die Variable `DEPLOY_ENABLED` mit Wert `true` anlegen. Vorher baut der Workflow nur die Images und deployt nicht.
+
 API-Schlüssel (Gemini, Claude …) kommen **nie** ins Repo und nicht in GitHub, sondern nur in die `.env` auf dem Server.
 
 ## Prinzipien
