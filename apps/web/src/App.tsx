@@ -136,7 +136,10 @@ export function App() {
 
       <footer className="footer">
         <span className={`dot dot--${server}`} /> {serverText}
-        {version && <span className="version"> · {version}</span>}
+        <span className="version">
+          {" · "}App {__APP_VERSION__.replace("sha-", "")}
+          {version && version !== __APP_VERSION__ ? ` · Server ${version.replace("sha-", "")}` : ""}
+        </span>
         {view === "home" && (
           <>
             {" · "}
