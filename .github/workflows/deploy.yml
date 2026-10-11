@@ -83,7 +83,13 @@ jobs:
           SSH_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
         run: |
           mkdir -p ~/.ssh
-          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy
+          # Akzeptiert den Schlüssel als normalen Block oder als eine Base64-Zeile (robuster beim Kopieren)
+          KEY=$(printf '%s' "$SSH_KEY" | tr -d '\r')
+          if printf '%s' "$KEY" | grep -q 'BEGIN OPENSSH PRIVATE KEY'; then
+            printf '%s\n' "$KEY" | sed 's/^[[:space:]]*//' > ~/.ssh/id_deploy
+          else
+            printf '%s' "$KEY" | tr -d ' \n\t' | base64 -d > ~/.ssh/id_deploy
+          fi
           chmod 600 ~/.ssh/id_deploy
           printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
       - name: "Prüfung: privater Schlüssel lesbar"
