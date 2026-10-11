@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { initialLang, saveLang, t, type Lang, type TextKey } from "./i18n";
-import { formatBytes, MAX_SECONDS, useRecorder, type RecorderError } from "./recorder";
+import { formatBytes, loadEngine, MAX_SECONDS, saveEngine, useRecorder, type Engine, type RecorderError } from "./recorder";
 import { Lab } from "./Lab";
 
 type ServerState = "checking" | "ok" | "down";
@@ -24,7 +24,12 @@ export function App() {
   const [server, setServer] = useState<ServerState>("checking");
   const [version, setVersion] = useState<string>("");
   const [view, setView] = useState<"home" | "lab">("home");
-  const rec = useRecorder();
+  const [engine, setEngineState] = useState<Engine>(loadEngine);
+  const setEngine = (e: Engine) => {
+    setEngineState(e);
+    saveEngine(e);
+  };
+  const rec = useRecorder(engine);
   const [fileSeconds, setFileSeconds] = useState<number | null>(null);
   const standalone = isStandalone();
 
@@ -80,7 +85,7 @@ export function App() {
       </header>
 
       {view === "lab" ? (
-        <Lab lang={lang} onBack={() => setView("home")} />
+        <Lab lang={lang} engine={engine} onEngine={setEngine} onBack={() => setView("home")} />
       ) : (
         <section className="center">
           <p className="claim">{t(lang, "claim")}</p>
@@ -120,7 +125,7 @@ export function App() {
               <p className="meta">
                 Diagnose: Datei {fileSeconds === null ? "…" : Number.isFinite(fileSeconds) ? `${fileSeconds.toFixed(1)} s` : "?"}
                 {" · "}Stücke {rec.recording.chunks}
-                {" · "}Mikro {rec.recording.streamReused ? "weiter offen" : "neu geöffnet"}
+                {" · "}Methode {rec.recording.engine === "wav" ? "WAV" : "MediaRecorder"}
                 {rec.recording.trackMuted ? " · STUMM" : ""}
                 {rec.recording.trackEnded ? " · BEENDET" : ""}
               </p>

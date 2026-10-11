@@ -37,6 +37,8 @@ const texts = {
     infoTitle: "3 · Geräteinfo",
     infoStandalone: "Als App installiert",
     infoFormat: "Aufnahmeformat",
+    engineTitle: "0 · Aufnahmemethode",
+    engineHint: "Umschalten, zurück zum Start und 3 Aufnahmen hintereinander testen.",
   },
   en: {
     claim: "Thought. Spoken. Laughed.",
@@ -74,6 +76,8 @@ const texts = {
     infoTitle: "3 · Device info",
     infoStandalone: "Installed as app",
     infoFormat: "Recording format",
+    engineTitle: "0 · Recording method",
+    engineHint: "Switch, go back home and test 3 recordings in a row.",
   },
 } as const;
 

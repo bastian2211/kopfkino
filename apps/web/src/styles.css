@@ -363,3 +363,29 @@ body {
     text-align: center;
   }
 }
+
+.segmented {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border: 3px solid var(--ink);
+  border-radius: 28px;
+  overflow: hidden;
+}
+
+.segmented button {
+  min-height: 52px;
+  border: 0;
+  background: #fff;
+  font: inherit;
+  font-weight: 800;
+  font-size: 17px;
+  color: var(--ink);
+}
+
+.segmented button + button {
+  border-left: 3px solid var(--ink);
+}
+
+.segmented button.on {
+  background: var(--sun);
+}

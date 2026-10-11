@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { pickMimeType } from "./recorder";
+import { pickMimeType, type Engine } from "./recorder";
 import { t, type Lang } from "./i18n";
 
 const TEST_VIDEO = "/test/kopfkino-test.mp4";
@@ -154,13 +154,46 @@ function DeviceInfo({ lang }: { lang: Lang }) {
   );
 }
 
-export function Lab({ lang, onBack }: { lang: Lang; onBack: () => void }) {
+function EnginePicker({ lang, engine, onEngine }: { lang: Lang; engine: Engine; onEngine: (e: Engine) => void }) {
+  return (
+    <section className="card">
+      <h2>{t(lang, "engineTitle")}</h2>
+      <div className="segmented" role="radiogroup">
+        <button
+          role="radio"
+          aria-checked={engine === "mediarecorder"}
+          className={engine === "mediarecorder" ? "on" : ""}
+          onClick={() => onEngine("mediarecorder")}
+        >
+          MediaRecorder
+        </button>
+        <button role="radio" aria-checked={engine === "wav"} className={engine === "wav" ? "on" : ""} onClick={() => onEngine("wav")}>
+          WAV
+        </button>
+      </div>
+      <p className="hint-small">{t(lang, "engineHint")}</p>
+    </section>
+  );
+}
+
+export function Lab({
+  lang,
+  engine,
+  onEngine,
+  onBack,
+}: {
+  lang: Lang;
+  engine: Engine;
+  onEngine: (e: Engine) => void;
+  onBack: () => void;
+}) {
   return (
     <div className="lab">
       <button className="back" onClick={onBack}>
         ← {t(lang, "back")}
       </button>
       <h1>{t(lang, "labTitle")}</h1>
+      <EnginePicker lang={lang} engine={engine} onEngine={onEngine} />
       <Camera lang={lang} />
       <Share lang={lang} />
       <DeviceInfo lang={lang} />
