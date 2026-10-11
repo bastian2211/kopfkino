@@ -77,13 +77,18 @@ jobs:
     environment: production
     steps:
       - uses: actions/checkout@v4
-      - name: SSH-Schlüssel einrichten
+      - name: SSH-Zugang einrichten
         env:
           SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           SSH_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          RAW_HOST: ${{ secrets.DEPLOY_HOST }}
+          RAW_USER: ${{ secrets.DEPLOY_USER }}
         run: |
-          mkdir -p ~/.ssh
-          # Akzeptiert den Schlüssel als normalen Block oder als eine Base64-Zeile (robuster beim Kopieren)
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          # Leerzeichen und Zeilenumbrüche aus kopierten Secrets entfernen
+          HOST=$(printf '%s' "$RAW_HOST" | tr -d '[:space:]')
+          USER_NAME=$(printf '%s' "$RAW_USER" | tr -d '[:space:]')
+          # Schlüssel als normaler Block oder als eine Base64-Zeile
           KEY=$(printf '%s' "$SSH_KEY" | tr -d '\r')
           if printf '%s' "$KEY" | grep -q 'BEGIN OPENSSH PRIVATE KEY'; then
             printf '%s\n' "$KEY" | sed 's/^[[:space:]]*//' > ~/.ssh/id_deploy
@@ -91,46 +96,50 @@ jobs:
             printf '%s' "$KEY" | tr -d ' \n\t' | base64 -d > ~/.ssh/id_deploy
           fi
           chmod 600 ~/.ssh/id_deploy
-          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          # Gespeicherten Server-Fingerabdruck genau unter dem Host ablegen, mit dem wir uns verbinden
+          printf '%s' "$SSH_KNOWN_HOSTS" | tr -d '\r' | awk -v h="$HOST" 'NF>=3 {print h, $(NF-1), $NF}' > ~/.ssh/known_hosts
+          # Ein Alias "kopfkino" für alle folgenden ssh/scp-Aufrufe
+          cat > ~/.ssh/config <<CFG
+          Host kopfkino
+            HostName $HOST
+            User $USER_NAME
+            IdentityFile ~/.ssh/id_deploy
+            IdentitiesOnly yes
+            BatchMode yes
+            StrictHostKeyChecking yes
+            UserKnownHostsFile ~/.ssh/known_hosts
+            ConnectTimeout 15
+          CFG
+          sed -i 's/^          //' ~/.ssh/config
+          chmod 600 ~/.ssh/config
       - name: "Prüfung: privater Schlüssel lesbar"
         run: ssh-keygen -y -f ~/.ssh/id_deploy > /dev/null
       - name: "Prüfung: Server-Fingerabdruck stimmt"
-        env:
-          HOST: ${{ secrets.DEPLOY_HOST }}
         run: |
+          HOST=$(awk '/HostName/ {print $2}' ~/.ssh/config)
           ssh-keyscan -t ed25519 "$HOST" 2>/dev/null | awk '{print $2, $3}' > /tmp/live
           awk '{print $2, $3}' ~/.ssh/known_hosts > /tmp/saved
           diff -q /tmp/live /tmp/saved
       - name: "Prüfung: Anmeldung als Deploy-Benutzer"
-        env:
-          HOST: ${{ secrets.DEPLOY_HOST }}
-          USER: ${{ secrets.DEPLOY_USER }}
-        run: ssh -i ~/.ssh/id_deploy -o BatchMode=yes "$USER@$HOST" true
+        run: ssh kopfkino true
       - name: Compose-Datei hochladen und Container aktualisieren
         env:
-          HOST: ${{ secrets.DEPLOY_HOST }}
-          USER: ${{ secrets.DEPLOY_USER }}
           TAG: ${{ needs.images.outputs.tag }}
           GHCR_USER: ${{ github.actor }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          scp -i ~/.ssh/id_deploy docker-compose.yml "$USER@$HOST:/opt/kopfkino/docker-compose.yml"
+          scp docker-compose.yml kopfkino:/opt/kopfkino/docker-compose.yml
           # Token per stdin, damit er nicht in der Prozessliste des Servers auftaucht
-          printf '%s' "$GHCR_TOKEN" | ssh -i ~/.ssh/id_deploy "$USER@$HOST" \
-            "docker login ghcr.io -u '$GHCR_USER' --password-stdin"
-          ssh -i ~/.ssh/id_deploy "$USER@$HOST" \
-            "cd /opt/kopfkino && \
-             sed -i 's/^IMAGE_TAG=.*/IMAGE_TAG=$TAG/' .env && \
-             docker compose pull && \
-             docker compose up -d --remove-orphans && \
-             docker image prune -f"
+          printf '%s' "$GHCR_TOKEN" | ssh kopfkino "docker login ghcr.io -u '$GHCR_USER' --password-stdin"
+          ssh kopfkino "cd /opt/kopfkino && \
+            sed -i 's/^IMAGE_TAG=.*/IMAGE_TAG=$TAG/' .env && \
+            docker compose pull && \
+            docker compose up -d --remove-orphans && \
+            docker image prune -f"
       - name: Health-Check
-        env:
-          HOST: ${{ secrets.DEPLOY_HOST }}
-          USER: ${{ secrets.DEPLOY_USER }}
         run: |
           for i in $(seq 1 20); do
-            if ssh -i ~/.ssh/id_deploy "$USER@$HOST" "docker compose -f /opt/kopfkino/docker-compose.yml exec -T api wget -qO- http://127.0.0.1:3000/api/health"; then
+            if ssh kopfkino "docker compose -f /opt/kopfkino/docker-compose.yml exec -T api wget -qO- http://127.0.0.1:3000/api/health"; then
               echo; echo "API gesund"; exit 0
             fi
             sleep 5
