@@ -33,6 +33,8 @@ services:
       MARKUP_PCT: ${MARKUP_PCT:-30}
       USD_PER_EUR: ${USD_PER_EUR:-1.15}
       MONTHLY_CAP_EUR: ${MONTHLY_CAP_EUR:-20}
+      # Spracherkennung (Mistral Voxtral)
+      MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
     depends_on:
       db:
         condition: service_healthy

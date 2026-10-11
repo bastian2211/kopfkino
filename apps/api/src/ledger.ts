@@ -281,6 +281,28 @@ async function closeBudget(c: Client, r: OpenReservation, actualEur: number): Pr
   );
 }
 
+// ---- Kleine API-Kosten ohne Guthaben-Abbuchung (z. B. Spracherkennung) ----
+// Zählen trotzdem zum Monatslimit: vorher Schätzung belegen, danach durch tatsächliche Kosten ersetzen.
+
+export async function holdBudget(db: Db, p: Pricing, estEur: number): Promise<{ month: string }> {
+  return inTx(db, async (c) => {
+    const budget = await lockBudgetMonth(c);
+    if (budget.spent + budget.reserved + estEur > p.MONTHLY_CAP_EUR + 1e-9) throw new LedgerError("budget_exhausted");
+    await c.query("update budget_months set reserved_eur = reserved_eur + $1 where month = $2", [estEur, budget.month]);
+    return { month: budget.month };
+  });
+}
+
+export async function finishBudget(db: Db, month: string, estEur: number, actualEur: number): Promise<void> {
+  await db.query(
+    `update budget_months
+        set reserved_eur = greatest(reserved_eur - $2, 0),
+            spent_eur = spent_eur + $3
+      where month = $1`,
+    [month, estEur, actualEur],
+  );
+}
+
 // ---- Abfragen ----
 
 export async function budgetStatus(

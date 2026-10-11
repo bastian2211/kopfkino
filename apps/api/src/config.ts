@@ -21,6 +21,11 @@ const schema = z.object({
   USD_PER_EUR: z.coerce.number().positive().default(1.15),
   // Hartes Monatslimit für alle API-Kosten zusammen. Mehr als 20 € lässt die App nicht zu.
   MONTHLY_CAP_EUR: z.coerce.number().positive().max(20).default(20),
+  // Spracherkennung (Mistral Voxtral). Ohne Schlüssel: in Produktion aus, lokal ein Test-Ersatz.
+  MISTRAL_API_KEY: z.preprocess(emptyToUndefined, z.string().optional()),
+  STT_MODEL: z.string().default("voxtral-mini-latest"),
+  // Preis laut https://mistral.ai/news/voxtral-transcribe-2 : 0,003 $ pro Minute
+  STT_USD_PER_MIN: z.coerce.number().positive().default(0.003),
   VAPID_SUBJECT: z.string().default("mailto:admin@steinhose.de"),
 });
 

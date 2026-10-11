@@ -6,6 +6,8 @@ import { loadConfig } from "./config.js";
 import { createPool, migrate } from "./db.js";
 import { authRoutes } from "./routes/auth.js";
 import { creditRoutes } from "./routes/credits.js";
+import { sttRoutes } from "./routes/stt.js";
+import { createStt } from "./adapters/stt.js";
 import { createPusher, pushRoutes } from "./routes/push.js";
 
 export async function buildServer() {
@@ -69,6 +71,7 @@ export async function buildServer() {
   const pusher = createPusher(db, config, app.log);
   authRoutes(app, db, config);
   creditRoutes(app, db, config);
+  sttRoutes(app, db, config, createStt(config));
   pushRoutes(app, db, config, pusher);
 
   return { app, config, db };

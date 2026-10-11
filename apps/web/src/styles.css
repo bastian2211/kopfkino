@@ -586,3 +586,70 @@ h2.section {
 .budgetlist .sw.reserved {
   background: var(--sun);
 }
+
+/* Transkript */
+.transcript {
+  text-align: left;
+}
+.transcript-label {
+  font-weight: 800;
+  font-size: 18px;
+}
+.transcript textarea {
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  font-size: 17px;
+  line-height: 1.35;
+  padding: 12px 14px;
+  border: 3px solid var(--ink);
+  border-radius: 16px;
+  background: #fff;
+  color: var(--ink);
+  resize: vertical;
+}
+.thinking {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  margin: 0;
+}
+.dots {
+  display: inline-flex;
+  gap: 4px;
+}
+.dots i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--coral);
+  animation: hop 0.9s infinite ease-in-out;
+}
+.dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.dots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+@keyframes hop {
+  0%,
+  80%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.5;
+  }
+  40% {
+    transform: translateY(-6px);
+    opacity: 1;
+  }
+}
+.listen summary {
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--muted);
+}
+.listen audio {
+  width: 100%;
+  margin-top: 8px;
+}

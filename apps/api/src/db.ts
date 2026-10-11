@@ -122,6 +122,26 @@ const MIGRATIONS: { id: string; sql: string }[] = [
       create index reservations_open_idx on reservations(status) where status = 'open';
     `,
   },
+  {
+    id: "004_stt_requests",
+    sql: `
+      -- Protokoll der Spracherkennung: nur Kosten und Dauer, weder Audio noch Text (Datensparsamkeit)
+      create table stt_requests (
+        id uuid primary key default gen_random_uuid(),
+        user_id uuid not null references users(id) on delete cascade,
+        provider text not null,
+        model text not null,
+        audio_seconds numeric(8, 2) not null,
+        billed_seconds numeric(8, 2),
+        cost_eur numeric(12, 6) not null default 0,
+        language text,
+        ok boolean not null,
+        error text,
+        created_at timestamptz not null default now()
+      );
+      create index stt_requests_user_idx on stt_requests(user_id, created_at desc);
+    `,
+  },
 ];
 
 export async function migrate(db: Db, log: (msg: string) => void = console.log): Promise<void> {

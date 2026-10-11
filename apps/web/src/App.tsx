@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { initialLang, saveLang, t, type Lang, type TextKey } from "./i18n";
-import { formatBytes, loadEngine, MAX_SECONDS, saveEngine, useRecorder, type Engine, type RecorderError } from "./recorder";
+import { loadEngine, MAX_SECONDS, saveEngine, useRecorder, type Engine, type RecorderError } from "./recorder";
 import { Lab } from "./Lab";
+import { Transcript } from "./Transcript";
 import { Account, Login, Register } from "./Auth";
 import { api, type Me } from "./api";
 import { formatCredits, useBalance } from "./Credits";
@@ -59,11 +60,8 @@ export function App() {
     saveEngine(e);
   };
   const rec = useRecorder(engine);
-  const [fileSeconds, setFileSeconds] = useState<number | null>(null);
   const standalone = isStandalone();
 
-  // Neue Aufnahme → gemessene Dateilänge zurücksetzen
-  useEffect(() => setFileSeconds(null), [rec.recording?.url]);
 
   useEffect(() => {
     let cancelled = false;
@@ -165,31 +163,7 @@ export function App() {
           <p className="hint">{hint}</p>
           {rec.error && <p className="err">{t(lang, ERROR_TEXT[rec.error])}</p>}
 
-          {rec.recording && !recording && (
-            <div className="playback">
-              <p className="playback-title">
-                {t(lang, "micDone")} #{rec.recording.number}
-              </p>
-              <audio
-                key={rec.recording.url}
-                src={rec.recording.url}
-                controls
-                playsInline
-                preload="metadata"
-                onLoadedMetadata={(e) => setFileSeconds(e.currentTarget.duration)}
-              />
-              <p className="meta">
-                {rec.recording.seconds.toFixed(1)} s · {formatBytes(rec.recording.bytes)} · {rec.recording.mimeType}
-              </p>
-              <p className="meta">
-                Diagnose: Datei {fileSeconds === null ? "…" : Number.isFinite(fileSeconds) ? `${fileSeconds.toFixed(1)} s` : "?"}
-                {" · "}Stücke {rec.recording.chunks}
-                {" · "}Methode {rec.recording.engine === "wav" ? "WAV" : "MediaRecorder"}
-                {rec.recording.trackMuted ? " · STUMM" : ""}
-                {rec.recording.trackEnded ? " · BEENDET" : ""}
-              </p>
-            </div>
-          )}
+          {rec.recording && !recording && <Transcript lang={lang} recording={rec.recording} />}
         </section>
       )}
 
