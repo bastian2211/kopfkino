@@ -73,8 +73,6 @@ jobs:
 
   deploy:
     needs: images
-    # Erst aktiv, wenn der Server eingerichtet ist: Repo-Variable DEPLOY_ENABLED=true setzen
-    if: vars.DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-latest
     environment: production
     steps:
