@@ -1,0 +1,118 @@
+name: Build & Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build
+
+  images:
+    needs: check
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.vars.outputs.tag }}
+      prefix: ${{ steps.vars.outputs.prefix }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: vars
+        run: |
+          echo "tag=sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          echo "prefix=${REGISTRY}/${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: API-Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: true
+          build-args: APP_VERSION=${{ steps.vars.outputs.tag }}
+          tags: |
+            ${{ steps.vars.outputs.prefix }}/kopfkino-api:${{ steps.vars.outputs.tag }}
+            ${{ steps.vars.outputs.prefix }}/kopfkino-api:latest
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+      - name: Web-Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.vars.outputs.prefix }}/kopfkino-web:${{ steps.vars.outputs.tag }}
+            ${{ steps.vars.outputs.prefix }}/kopfkino-web:latest
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
+
+  deploy:
+    needs: images
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - name: SSH-Schlüssel einrichten
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+      - name: Compose-Datei hochladen und Container aktualisieren
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER: ${{ secrets.DEPLOY_USER }}
+          TAG: ${{ needs.images.outputs.tag }}
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          scp -i ~/.ssh/id_deploy docker-compose.yml "$USER@$HOST:/opt/kopfkino/docker-compose.yml"
+          # Token per stdin, damit er nicht in der Prozessliste des Servers auftaucht
+          printf '%s' "$GHCR_TOKEN" | ssh -i ~/.ssh/id_deploy "$USER@$HOST" \
+            "docker login ghcr.io -u '$GHCR_USER' --password-stdin"
+          ssh -i ~/.ssh/id_deploy "$USER@$HOST" \
+            "cd /opt/kopfkino && \
+             sed -i 's/^IMAGE_TAG=.*/IMAGE_TAG=$TAG/' .env && \
+             docker compose pull && \
+             docker compose up -d --remove-orphans && \
+             docker image prune -f"
+      - name: Health-Check
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          for i in $(seq 1 20); do
+            if ssh -i ~/.ssh/id_deploy "$USER@$HOST" "docker compose -f /opt/kopfkino/docker-compose.yml exec -T api wget -qO- http://127.0.0.1:3000/api/health"; then
+              echo; echo "API gesund"; exit 0
+            fi
+            sleep 5
+          done
+          echo "Health-Check fehlgeschlagen"; exit 1
