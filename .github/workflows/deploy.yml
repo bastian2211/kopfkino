@@ -86,6 +86,20 @@ jobs:
           printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy
           chmod 600 ~/.ssh/id_deploy
           printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+      - name: "Prüfung: privater Schlüssel lesbar"
+        run: ssh-keygen -y -f ~/.ssh/id_deploy > /dev/null
+      - name: "Prüfung: Server-Fingerabdruck stimmt"
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+        run: |
+          ssh-keyscan -t ed25519 "$HOST" 2>/dev/null | awk '{print $2, $3}' > /tmp/live
+          awk '{print $2, $3}' ~/.ssh/known_hosts > /tmp/saved
+          diff -q /tmp/live /tmp/saved
+      - name: "Prüfung: Anmeldung als Deploy-Benutzer"
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER: ${{ secrets.DEPLOY_USER }}
+        run: ssh -i ~/.ssh/id_deploy -o BatchMode=yes "$USER@$HOST" true
       - name: Compose-Datei hochladen und Container aktualisieren
         env:
           HOST: ${{ secrets.DEPLOY_HOST }}
