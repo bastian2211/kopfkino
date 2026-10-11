@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import { initialLang, saveLang, t, type Lang } from "./i18n";
+import { initialLang, saveLang, t, type Lang, type TextKey } from "./i18n";
+import { formatBytes, MAX_SECONDS, useRecorder, type RecorderError } from "./recorder";
+import { Lab } from "./Lab";
 
 type ServerState = "checking" | "ok" | "down";
 
@@ -9,11 +11,20 @@ function isStandalone(): boolean {
   return nav.standalone === true || window.matchMedia("(display-mode: standalone)").matches;
 }
 
+const ERROR_TEXT: Record<RecorderError, TextKey> = {
+  unsupported: "micUnsupported",
+  denied: "micDenied",
+  nodevice: "micNoDevice",
+  empty: "micEmpty",
+  unknown: "micUnknown",
+};
+
 export function App() {
   const [lang, setLang] = useState<Lang>(initialLang);
   const [server, setServer] = useState<ServerState>("checking");
   const [version, setVersion] = useState<string>("");
-  const [tapped, setTapped] = useState(false);
+  const [view, setView] = useState<"home" | "lab">("home");
+  const rec = useRecorder();
   const standalone = isStandalone();
 
   useEffect(() => {
@@ -38,8 +49,22 @@ export function App() {
     document.documentElement.lang = next;
   };
 
+  const onMic = () => {
+    if (rec.state === "recording") rec.stop();
+    else if (rec.state === "idle") void rec.start();
+  };
+
   const serverText =
     server === "ok" ? t(lang, "serverOk") : server === "down" ? t(lang, "serverDown") : t(lang, "serverChecking");
+
+  const recording = rec.state === "recording";
+  const remaining = Math.max(0, Math.ceil(MAX_SECONDS - rec.elapsed));
+  const hint =
+    rec.state === "starting"
+      ? t(lang, "micStarting")
+      : recording
+        ? t(lang, "micRecording")
+        : t(lang, "micHint");
 
   return (
     <main className="screen">
@@ -50,23 +75,53 @@ export function App() {
         </button>
       </header>
 
-      <section className="center">
-        <p className="claim">{t(lang, "claim")}</p>
-        <button
-          className={`mic ${tapped ? "mic--tapped" : ""}`}
-          onClick={() => setTapped(true)}
-          aria-label={t(lang, "micHint")}
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2Z" />
-          </svg>
-        </button>
-        <p className="hint">{tapped ? t(lang, "micSoon") : t(lang, "micHint")}</p>
-      </section>
+      {view === "lab" ? (
+        <Lab lang={lang} onBack={() => setView("home")} />
+      ) : (
+        <section className="center">
+          <p className="claim">{t(lang, "claim")}</p>
+          <button
+            className={`mic ${recording ? "mic--rec" : ""}`}
+            onClick={onMic}
+            disabled={rec.state === "starting" || rec.state === "stopping"}
+            aria-label={hint}
+          >
+            {recording ? (
+              <span className="countdown">{remaining}</span>
+            ) : (
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2Z" />
+              </svg>
+            )}
+          </button>
+          <p className="hint">{hint}</p>
+          {rec.error && <p className="err">{t(lang, ERROR_TEXT[rec.error])}</p>}
+
+          {rec.recording && !recording && (
+            <div className="playback">
+              <p className="playback-title">
+                {t(lang, "micDone")} #{rec.recording.number}
+              </p>
+              <audio src={rec.recording.url} controls playsInline />
+              <p className="meta">
+                {rec.recording.seconds.toFixed(1)} s · {formatBytes(rec.recording.bytes)} · {rec.recording.mimeType}
+              </p>
+            </div>
+          )}
+        </section>
+      )}
 
       <footer className="footer">
         <span className={`dot dot--${server}`} /> {serverText}
         {version && <span className="version"> · {version}</span>}
+        {view === "home" && (
+          <>
+            {" · "}
+            <button className="linkbtn" onClick={() => setView("lab")}>
+              {t(lang, "labLink")}
+            </button>
+          </>
+        )}
         {!standalone && <p className="install">{t(lang, "installHint")}</p>}
       </footer>
 

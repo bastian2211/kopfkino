@@ -27,7 +27,7 @@ export default defineConfig({
       },
       workbox: {
         // API-Aufrufe nie aus dem Cache bedienen – Guthaben, Jobs und Status müssen live sein.
-        navigateFallbackDenylist: [/^\/api\//],
+        navigateFallbackDenylist: [/^\/api\//, /^\/test\//],
         runtimeCaching: [],
       },
     }),

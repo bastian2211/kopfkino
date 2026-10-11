@@ -1,0 +1,169 @@
+import { useEffect, useRef, useState } from "react";
+import { pickMimeType } from "./recorder";
+import { t, type Lang } from "./i18n";
+
+const TEST_VIDEO = "/test/kopfkino-test.mp4";
+
+function Camera({ lang }: { lang: Lang }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const [live, setLive] = useState(false);
+  const [photo, setPhoto] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const stopCamera = () => {
+    streamRef.current?.getTracks().forEach((tr) => tr.stop());
+    streamRef.current = null;
+    setLive(false);
+  };
+
+  useEffect(() => stopCamera, []);
+
+  const startCamera = async () => {
+    setError(null);
+    setPhoto(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user", width: { ideal: 720 }, height: { ideal: 1280 } },
+        audio: false,
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+      setLive(true);
+    } catch (err) {
+      const name = err instanceof DOMException ? err.name : String(err);
+      setError(name === "NotAllowedError" ? t(lang, "camDenied") : `${t(lang, "error")}: ${name}`);
+      stopCamera();
+    }
+  };
+
+  const takePhoto = () => {
+    const v = videoRef.current;
+    if (!v || !v.videoWidth) return;
+    const canvas = document.createElement("canvas");
+    canvas.width = v.videoWidth;
+    canvas.height = v.videoHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    // Spiegeln wie in der Vorschau, damit das Selfie natürlich aussieht
+    ctx.translate(canvas.width, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(v, 0, 0);
+    setPhoto(canvas.toDataURL("image/jpeg", 0.85));
+    stopCamera();
+  };
+
+  return (
+    <section className="card">
+      <h2>{t(lang, "camTitle")}</h2>
+      <div className="cam">
+        <video ref={videoRef} playsInline muted className={live ? "" : "hidden"} />
+        {photo && <img src={photo} alt="Selfie" />}
+        {!live && !photo && <div className="cam-empty">📷</div>}
+      </div>
+      {!live ? (
+        <button className="btn" onClick={startCamera}>
+          {photo ? t(lang, "camAgain") : t(lang, "camStart")}
+        </button>
+      ) : (
+        <button className="btn btn--coral" onClick={takePhoto}>
+          {t(lang, "camShoot")}
+        </button>
+      )}
+      {photo && <p className="ok">✓ {t(lang, "camOk")}</p>}
+      {error && <p className="err">{error}</p>}
+    </section>
+  );
+}
+
+function Share({ lang }: { lang: Lang }) {
+  const [file, setFile] = useState<File | null>(null);
+  const [result, setResult] = useState<string | null>(null);
+
+  // Datei VORHER laden: iOS erlaubt navigator.share nur direkt nach dem Tipp,
+  // ein Download dazwischen würde die Erlaubnis kosten.
+  useEffect(() => {
+    fetch(TEST_VIDEO)
+      .then((r) => r.blob())
+      .then((b) => setFile(new File([b], "kopfkino-test.mp4", { type: "video/mp4" })))
+      .catch(() => setResult(t(lang, "shareLoadFail")));
+  }, [lang]);
+
+  const canShareFile = !!file && typeof navigator.canShare === "function" && navigator.canShare({ files: [file] });
+
+  const share = async () => {
+    if (!file) return;
+    try {
+      await navigator.share({ files: [file], title: "Kopfkino" });
+      setResult(`✓ ${t(lang, "shareOk")}`);
+    } catch (err) {
+      const name = err instanceof DOMException ? err.name : String(err);
+      setResult(name === "AbortError" ? t(lang, "shareAborted") : `${t(lang, "error")}: ${name}`);
+    }
+  };
+
+  return (
+    <section className="card">
+      <h2>{t(lang, "shareTitle")}</h2>
+      <video className="testvideo" src={TEST_VIDEO} controls playsInline preload="metadata" />
+      {canShareFile ? (
+        <button className="btn" onClick={share}>
+          {t(lang, "shareBtn")}
+        </button>
+      ) : (
+        <a className="btn" href={TEST_VIDEO} download>
+          {t(lang, "shareDownload")}
+        </a>
+      )}
+      <p className="hint-small">{t(lang, "shareHint")}</p>
+      {result && <p className={result.startsWith("✓") ? "ok" : "err"}>{result}</p>}
+    </section>
+  );
+}
+
+function DeviceInfo({ lang }: { lang: Lang }) {
+  const nav = navigator as Navigator & { standalone?: boolean };
+  const yes = (b: boolean) => (b ? "✓" : "✗");
+  const rows: [string, string][] = [
+    [t(lang, "infoStandalone"), yes(nav.standalone === true || matchMedia("(display-mode: standalone)").matches)],
+    ["MediaRecorder", yes(typeof MediaRecorder !== "undefined")],
+    [t(lang, "infoFormat"), pickMimeType() ?? "—"],
+    ["getUserMedia", yes(!!navigator.mediaDevices?.getUserMedia)],
+    ["Web Share (Dateien)", yes(typeof navigator.canShare === "function")],
+    ["Push", yes("PushManager" in window && "serviceWorker" in navigator)],
+    ["Notification", typeof Notification !== "undefined" ? Notification.permission : "—"],
+  ];
+  return (
+    <section className="card">
+      <h2>{t(lang, "infoTitle")}</h2>
+      <table className="info">
+        <tbody>
+          {rows.map(([k, v]) => (
+            <tr key={k}>
+              <td>{k}</td>
+              <td>{v}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="ua">{navigator.userAgent}</p>
+    </section>
+  );
+}
+
+export function Lab({ lang, onBack }: { lang: Lang; onBack: () => void }) {
+  return (
+    <div className="lab">
+      <button className="back" onClick={onBack}>
+        ← {t(lang, "back")}
+      </button>
+      <h1>{t(lang, "labTitle")}</h1>
+      <Camera lang={lang} />
+      <Share lang={lang} />
+      <DeviceInfo lang={lang} />
+    </div>
+  );
+}
