@@ -4,6 +4,7 @@ import { formatBytes, loadEngine, MAX_SECONDS, saveEngine, useRecorder, type Eng
 import { Lab } from "./Lab";
 import { Account, Login, Register } from "./Auth";
 import { api, type Me } from "./api";
+import { formatCredits, useBalance } from "./Credits";
 
 function readInviteCode(): string | null {
   return new URLSearchParams(window.location.search).get("invite");
@@ -42,6 +43,8 @@ export function App() {
   useEffect(() => {
     void loadMe();
   }, []);
+
+  const credits = useBalance(!!me);
 
   const afterAuth = () => {
     // Einladungscode aus der Adresse entfernen, damit er nicht im Verlauf bleibt
@@ -125,7 +128,11 @@ export function App() {
         <Account
           lang={lang}
           me={me}
-          onBack={() => setView("home")}
+          onBack={() => {
+            credits.reload();
+            setView("home");
+          }}
+          onBalanceChange={credits.reload}
           onLogout={() => {
             setMe(null);
             setView("home");
@@ -136,6 +143,11 @@ export function App() {
       ) : (
         <section className="center">
           <p className="claim">{t(lang, "claim")}</p>
+          {credits.balance !== null && (
+            <button className="creditpill" onClick={() => setView("account")}>
+              🎟 {formatCredits(credits.balance, lang)} Credits
+            </button>
+          )}
           <button
             className={`mic ${recording ? "mic--rec" : ""}`}
             onClick={onMic}

@@ -176,12 +176,4 @@ export function authRoutes(app: FastifyInstance, db: Db, config: Config) {
     );
     return { invites: rows };
   });
-
-  app.get("/api/admin/users", async (req, reply) => {
-    if (requireAdmin(req, reply)) return;
-    const { rows } = await db.query(
-      "select id, username, display_name, role, created_at, disabled_at from users order by created_at",
-    );
-    return { users: rows };
-  });
 }

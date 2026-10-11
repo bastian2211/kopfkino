@@ -15,6 +15,12 @@ const schema = z.object({
   // Web Push (optional; ohne Schlüssel ist Push einfach deaktiviert)
   VAPID_PUBLIC_KEY: z.preprocess(emptyToUndefined, z.string().optional()),
   VAPID_PRIVATE_KEY: z.preprocess(emptyToUndefined, z.string().optional()),
+  // Guthaben: 1 Credit = EUR_PER_CREDIT €, Aufschlag auf die API-Kosten, Dollarkurs (1 € = USD_PER_EUR $)
+  EUR_PER_CREDIT: z.coerce.number().positive().default(0.01),
+  MARKUP_PCT: z.coerce.number().min(0).max(300).default(30),
+  USD_PER_EUR: z.coerce.number().positive().default(1.15),
+  // Hartes Monatslimit für alle API-Kosten zusammen. Mehr als 20 € lässt die App nicht zu.
+  MONTHLY_CAP_EUR: z.coerce.number().positive().max(20).default(20),
   VAPID_SUBJECT: z.string().default("mailto:admin@steinhose.de"),
 });
 

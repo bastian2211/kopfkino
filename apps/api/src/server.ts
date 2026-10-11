@@ -5,6 +5,7 @@ import { loadUserFromToken, readToken } from "./auth.js";
 import { loadConfig } from "./config.js";
 import { createPool, migrate } from "./db.js";
 import { authRoutes } from "./routes/auth.js";
+import { creditRoutes } from "./routes/credits.js";
 import { createPusher, pushRoutes } from "./routes/push.js";
 
 export async function buildServer() {
@@ -67,6 +68,7 @@ export async function buildServer() {
 
   const pusher = createPusher(db, config, app.log);
   authRoutes(app, db, config);
+  creditRoutes(app, db, config);
   pushRoutes(app, db, config, pusher);
 
   return { app, config, db };

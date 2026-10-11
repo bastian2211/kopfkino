@@ -62,6 +62,66 @@ const MIGRATIONS: { id: string; sql: string }[] = [
       create index push_user_idx on push_subscriptions(user_id);
     `,
   },
+  {
+    id: "003_ledger_budget",
+    sql: `
+      -- Guthaben-Buchungen: nur Einfügen erlaubt. Kontostand = Summe aller Buchungen.
+      create table ledger_entries (
+        id bigserial primary key,
+        user_id uuid not null references users(id),
+        type text not null check (type in ('topup', 'reserve', 'release', 'charge', 'refund', 'admin_adjust')),
+        credits integer not null,
+        reservation_id uuid,
+        payment_id uuid,
+        idempotency_key text not null unique,
+        note text check (char_length(note) <= 120),
+        created_by uuid references users(id),
+        created_at timestamptz not null default now(),
+        -- Vorzeichen passend zum Typ erzwingen
+        check (
+          (type in ('topup', 'release', 'refund') and credits > 0) or
+          (type in ('reserve', 'charge') and credits < 0) or
+          (type = 'admin_adjust' and credits <> 0)
+        )
+      );
+      create index ledger_user_idx on ledger_entries(user_id, id desc);
+
+      create function ledger_immutable() returns trigger language plpgsql as $f$
+      begin
+        raise exception 'ledger_entries ist unveränderlich (nur INSERT erlaubt)';
+      end
+      $f$;
+      create trigger ledger_no_update_delete before update or delete on ledger_entries
+        for each row execute function ledger_immutable();
+      create trigger ledger_no_truncate before truncate on ledger_entries
+        for each statement execute function ledger_immutable();
+
+      -- Monatliches API-Kostenlimit (globale Sicherung über alle Nutzer)
+      create table budget_months (
+        month date primary key,
+        spent_eur numeric(12, 4) not null default 0 check (spent_eur >= 0),
+        reserved_eur numeric(12, 4) not null default 0 check (reserved_eur >= 0)
+      );
+
+      -- Reservierung vor einer kostenpflichtigen Aktion (später: ein Video-Job)
+      create table reservations (
+        id uuid primary key default gen_random_uuid(),
+        user_id uuid not null references users(id),
+        credits integer not null check (credits > 0),
+        est_eur numeric(12, 4) not null check (est_eur >= 0),
+        budget_month date not null references budget_months(month),
+        markup_pct numeric(6, 2) not null,
+        eur_per_credit numeric(10, 6) not null,
+        purpose text not null,
+        status text not null default 'open' check (status in ('open', 'settled', 'released')),
+        actual_eur numeric(12, 4),
+        charged_credits integer,
+        created_at timestamptz not null default now(),
+        closed_at timestamptz
+      );
+      create index reservations_open_idx on reservations(status) where status = 'open';
+    `,
+  },
 ];
 
 export async function migrate(db: Db, log: (msg: string) => void = console.log): Promise<void> {

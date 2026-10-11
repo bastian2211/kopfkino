@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { api, errorCode, type Me } from "./api";
 import { errText, t, type Lang } from "./i18n";
+import { AdminUsers, BudgetCard, Statement } from "./Credits";
 
 // Anmelden mit Benutzername + Passwort
 export function Login({ lang, onDone }: { lang: Lang; onDone: () => void }) {
@@ -219,7 +220,20 @@ export function InviteFriend({ lang }: { lang: Lang }) {
 }
 
 // Konto-Bereich: wer bin ich, abmelden, ggf. einladen
-export function Account({ lang, me, onLogout, onBack }: { lang: Lang; me: Me; onLogout: () => void; onBack: () => void }) {
+export function Account({
+  lang,
+  me,
+  onLogout,
+  onBack,
+  onBalanceChange,
+}: {
+  lang: Lang;
+  me: Me;
+  onLogout: () => void;
+  onBack: () => void;
+  onBalanceChange: () => void;
+}) {
+  const [refresh, setRefresh] = useState(0);
   const logout = async () => {
     await api("/api/auth/logout", { body: {} }).catch(() => undefined);
     onLogout();
@@ -234,7 +248,21 @@ export function Account({ lang, me, onLogout, onBack }: { lang: Lang; me: Me; on
         @{me.username}
         {me.role === "admin" ? " · Admin" : ""}
       </p>
-      {me.role === "admin" && <InviteFriend lang={lang} />}
+      <Statement lang={lang} refreshKey={refresh} />
+      {me.role === "admin" && (
+        <>
+          <h2 className="section">Admin</h2>
+          <BudgetCard lang={lang} />
+          <AdminUsers
+            lang={lang}
+            onBooked={() => {
+              setRefresh((n) => n + 1);
+              onBalanceChange();
+            }}
+          />
+          <InviteFriend lang={lang} />
+        </>
+      )}
       <button className="btn" onClick={logout}>
         {t(lang, "logout")}
       </button>

@@ -28,6 +28,11 @@ services:
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
       VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:admin@steinhose.de}
+      # Guthaben-Umrechnung und hartes Monatslimit (die API lässt höchstens 20 € zu)
+      EUR_PER_CREDIT: ${EUR_PER_CREDIT:-0.01}
+      MARKUP_PCT: ${MARKUP_PCT:-30}
+      USD_PER_EUR: ${USD_PER_EUR:-1.15}
+      MONTHLY_CAP_EUR: ${MONTHLY_CAP_EUR:-20}
     depends_on:
       db:
         condition: service_healthy
