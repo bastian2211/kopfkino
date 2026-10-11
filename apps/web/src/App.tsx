@@ -25,7 +25,11 @@ export function App() {
   const [version, setVersion] = useState<string>("");
   const [view, setView] = useState<"home" | "lab">("home");
   const rec = useRecorder();
+  const [fileSeconds, setFileSeconds] = useState<number | null>(null);
   const standalone = isStandalone();
+
+  // Neue Aufnahme → gemessene Dateilänge zurücksetzen
+  useEffect(() => setFileSeconds(null), [rec.recording?.url]);
 
   useEffect(() => {
     let cancelled = false;
@@ -102,9 +106,23 @@ export function App() {
               <p className="playback-title">
                 {t(lang, "micDone")} #{rec.recording.number}
               </p>
-              <audio src={rec.recording.url} controls playsInline />
+              <audio
+                key={rec.recording.url}
+                src={rec.recording.url}
+                controls
+                playsInline
+                preload="metadata"
+                onLoadedMetadata={(e) => setFileSeconds(e.currentTarget.duration)}
+              />
               <p className="meta">
                 {rec.recording.seconds.toFixed(1)} s · {formatBytes(rec.recording.bytes)} · {rec.recording.mimeType}
+              </p>
+              <p className="meta">
+                Diagnose: Datei {fileSeconds === null ? "…" : Number.isFinite(fileSeconds) ? `${fileSeconds.toFixed(1)} s` : "?"}
+                {" · "}Stücke {rec.recording.chunks}
+                {" · "}Mikro {rec.recording.streamReused ? "weiter offen" : "neu geöffnet"}
+                {rec.recording.trackMuted ? " · STUMM" : ""}
+                {rec.recording.trackEnded ? " · BEENDET" : ""}
               </p>
             </div>
           )}
