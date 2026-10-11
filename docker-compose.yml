@@ -1,19 +1,17 @@
 # Läuft auf dem Hetzner-Server in /opt/kopfkino zusammen mit der .env.
 # Images baut GitHub Actions und legt sie in der GitHub Container Registry ab.
+#
+# Kopfkino belegt KEINE Ports nach außen. Der gemeinsame Caddy auf dem Server (Eingang für alle
+# Apps, macht HTTPS) erreicht den Container "kopfkino-web" über das externe Netzwerk "edge".
 services:
   web:
     image: ${IMAGE_PREFIX}/kopfkino-web:${IMAGE_TAG:-latest}
     restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
-    environment:
-      DOMAIN: ${DOMAIN}
-      ACME_EMAIL: ${ACME_EMAIL}
-    volumes:
-      - caddy_data:/data
-      - caddy_config:/config
+    networks:
+      default:
+      edge:
+        aliases:
+          - kopfkino-web
     depends_on:
       api:
         condition: service_healthy
@@ -28,7 +26,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    # Kein Port nach außen – nur Caddy spricht mit der API.
 
   db:
     image: postgres:17-alpine
@@ -45,7 +42,9 @@ services:
       timeout: 5s
       retries: 5
 
+networks:
+  edge:
+    external: true
+
 volumes:
-  caddy_data:
-  caddy_config:
   db_data:

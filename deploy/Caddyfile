@@ -1,14 +1,15 @@
-# DOMAIN und ACME_EMAIL kommen aus der .env auf dem Server.
-# Caddy holt das HTTPS-Zertifikat automatisch (Let's Encrypt).
+# Interner Webserver von Kopfkino: liefert die PWA aus und leitet /api an die API weiter.
+# HTTPS und Zertifikate macht der vorgelagerte Caddy (gemeinsamer Eingang auf dem Server),
+# deshalb hier nur HTTP auf Port 80 im Docker-Netzwerk, ohne eigene Zertifikate.
 {
-	email {$ACME_EMAIL}
+	auto_https off
+	admin off
 }
 
-{$DOMAIN} {
+:80 {
 	encode zstd gzip
 
 	header {
-		Strict-Transport-Security "max-age=31536000; includeSubDomains"
 		X-Content-Type-Options "nosniff"
 		Referrer-Policy "strict-origin-when-cross-origin"
 		# Kamera und Mikrofon nur für die eigene Seite erlauben

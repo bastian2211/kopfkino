@@ -2,7 +2,7 @@
 
 *Gedacht. Eingesprochen. Gelacht.* – Sprachidee rein, kurzes KI-Video raus.
 
-Stand: Schritt 1 des Fahrplans – installierbare PWA, API mit Health-Check, PostgreSQL, HTTPS über Caddy, Auto-Deploy bei Push auf `main`.
+Stand: Schritt 1 des Fahrplans – installierbare PWA, API mit Health-Check, PostgreSQL, hinter dem gemeinsamen Caddy des Servers, Auto-Deploy bei Push auf `main`.
 
 ## Aufbau
 
@@ -10,8 +10,8 @@ Stand: Schritt 1 des Fahrplans – installierbare PWA, API mit Health-Check, Pos
 | --- | --- |
 | `apps/web` | PWA: React + Vite + TypeScript, `vite-plugin-pwa`, DE/EN |
 | `apps/api` | API: Node.js + TypeScript + Fastify |
-| `deploy/Caddyfile` | HTTPS, Auslieferung der PWA, Proxy `/api/*` → API |
-| `docker-compose.yml` | Container `web` (Caddy + PWA), `api`, `db` (PostgreSQL) |
+| `deploy/Caddyfile` | interner Webserver: PWA ausliefern, `/api/*` → API (kein HTTPS, das macht der Eingang) |
+| `docker-compose.yml` | Container `web` (Caddy + PWA), `api`, `db` (PostgreSQL); keine Ports nach außen |
 | `.github/workflows/deploy.yml` | Prüfen → Images bauen (GHCR) → per SSH deployen |
 
 ## Lokal entwickeln
@@ -25,14 +25,22 @@ npm run dev:web   # http://localhost:5173, /api wird auf :3000 weitergeleitet
 
 ## Server einmalig einrichten (Hetzner)
 
-1. Docker + Compose-Plugin installieren, Ports 80 und 443 (TCP + UDP) freigeben.
-2. DNS-A-Record (und ggf. AAAA) der Domain auf den Server zeigen lassen.
-3. Deploy-Benutzer anlegen, der Docker nutzen darf, und Verzeichnis anlegen:
+Auf dem Server läuft bereits der Caddy des Freundebuchs auf Port 80/443. Er ist der gemeinsame Eingang und macht HTTPS für alle Apps. Kopfkino hängt sich über das Docker-Netzwerk `edge` dahinter.
+
+1. DNS-A-Record `kopfkino.steinhose.de` auf die Server-IP.
+2. Gemeinsames Netzwerk anlegen (einmalig): `docker network create edge`
+3. Freundebuch-Caddy ins Netzwerk `edge` hängen und dort diesen Eintrag ergänzen:
+   ```
+   kopfkino.steinhose.de {
+   	reverse_proxy kopfkino-web:80
+   }
+   ```
+4. Deploy-Benutzer anlegen, der Docker nutzen darf, und Verzeichnis anlegen:
    ```bash
    sudo mkdir -p /opt/kopfkino && sudo chown deploy:deploy /opt/kopfkino
    ```
-4. `.env.example` als `/opt/kopfkino/.env` ablegen und ausfüllen (`chmod 600`).
-5. Ein eigenes SSH-Schlüsselpaar nur für das Deployment erzeugen; öffentlichen Schlüssel beim Deploy-Benutzer in `authorized_keys` eintragen.
+5. `.env.example` als `/opt/kopfkino/.env` ablegen und ausfüllen (`chmod 600`).
+6. Ein eigenes SSH-Schlüsselpaar nur für das Deployment erzeugen; öffentlichen Schlüssel beim Deploy-Benutzer in `authorized_keys` eintragen.
 
 ## GitHub einrichten
 
