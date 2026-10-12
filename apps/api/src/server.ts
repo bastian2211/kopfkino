@@ -8,6 +8,9 @@ import { authRoutes } from "./routes/auth.js";
 import { creditRoutes } from "./routes/credits.js";
 import { sttRoutes } from "./routes/stt.js";
 import { createStt } from "./adapters/stt.js";
+import { createSceneInterpreter } from "./adapters/scene.js";
+import { createModeration } from "./adapters/moderation.js";
+import { sceneRoutes } from "./routes/scenes.js";
 import { createPusher, pushRoutes } from "./routes/push.js";
 
 export async function buildServer() {
@@ -72,6 +75,7 @@ export async function buildServer() {
   authRoutes(app, db, config);
   creditRoutes(app, db, config);
   sttRoutes(app, db, config, createStt(config));
+  sceneRoutes(app, db, config, createSceneInterpreter(config), createModeration(config));
   pushRoutes(app, db, config, pusher);
 
   return { app, config, db };

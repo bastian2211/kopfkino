@@ -142,6 +142,28 @@ const MIGRATIONS: { id: string; sql: string }[] = [
       create index stt_requests_user_idx on stt_requests(user_id, created_at desc);
     `,
   },
+  {
+    id: "005_scenes",
+    sql: `
+      -- Szenen aus Ideen. Werden (wie Videos) nach 30 Tagen gelöscht – Löschjob kommt in Schritt 8.
+      create table scenes (
+        id uuid primary key default gen_random_uuid(),
+        user_id uuid not null references users(id) on delete cascade,
+        idea text not null check (char_length(idea) <= 600),
+        lang text not null check (lang in ('de', 'en')),
+        status text not null check (status in ('ok', 'rejected')),
+        reject_reason text,
+        reject_source text check (reject_source in ('moderation', 'interpreter')),
+        scene jsonb,
+        scene_hash text,
+        model text,
+        cost_eur numeric(12, 6) not null default 0,
+        moderation jsonb,
+        created_at timestamptz not null default now()
+      );
+      create index scenes_user_idx on scenes(user_id, created_at desc);
+    `,
+  },
 ];
 
 export async function migrate(db: Db, log: (msg: string) => void = console.log): Promise<void> {

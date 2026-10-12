@@ -653,3 +653,68 @@ h2.section {
   width: 100%;
   margin-top: 8px;
 }
+
+/* Szenenkarte */
+.scene {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-top: 3px dashed var(--ink);
+  padding-top: 14px;
+  margin-top: 6px;
+}
+.scene p {
+  margin: 0;
+}
+.scene-badge {
+  font-weight: 800;
+  color: var(--coral);
+}
+.scene--rejected .scene-badge {
+  color: var(--ink);
+}
+.scene-title {
+  margin: 0;
+  font-size: 24px;
+  line-height: 1.15;
+}
+.scene-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chip-text {
+  background: var(--sun);
+  border: 2px solid var(--ink);
+  border-radius: 14px;
+  padding: 4px 10px;
+  font-size: 14px;
+}
+.beats {
+  margin: 0;
+  padding-left: 22px;
+  display: grid;
+  gap: 4px;
+}
+.scene-note {
+  background: #eef6ff;
+  border-radius: 12px;
+  padding: 8px 10px;
+  font-size: 14px;
+}
+.estimate {
+  display: grid;
+  gap: 4px;
+  background: #fff4d6;
+  border: 2px solid var(--ink);
+  border-radius: 14px;
+  padding: 10px 12px;
+}
+.estimate div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+.btn:disabled {
+  opacity: 0.55;
+}

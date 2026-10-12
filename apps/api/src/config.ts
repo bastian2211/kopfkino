@@ -26,6 +26,16 @@ const schema = z.object({
   STT_MODEL: z.string().default("voxtral-mini-latest"),
   // Preis laut https://mistral.ai/news/voxtral-transcribe-2 : 0,003 $ pro Minute
   STT_USD_PER_MIN: z.coerce.number().positive().default(0.003),
+  // Szenen-KI (Claude) – Preise laut https://platform.claude.com/docs/en/about-claude/pricing
+  ANTHROPIC_API_KEY: z.preprocess(emptyToUndefined, z.string().optional()),
+  SCENE_MODEL: z.string().default("claude-sonnet-5-5"),
+  SCENE_USD_IN_PER_MTOK: z.coerce.number().positive().default(2),
+  SCENE_USD_OUT_PER_MTOK: z.coerce.number().positive().default(10),
+  // Zweite Prüfung: OpenAI Moderation (laut Doku kostenlos)
+  OPENAI_API_KEY: z.preprocess(emptyToUndefined, z.string().optional()),
+  // Video: Veo 3.1 Lite 720p laut https://ai.google.dev/gemini-api/docs/pricing 0,05 $/s
+  VIDEO_USD_PER_SEC: z.coerce.number().positive().default(0.05),
+  VIDEO_SECONDS: z.coerce.number().int().min(4).max(8).default(6),
   VAPID_SUBJECT: z.string().default("mailto:admin@steinhose.de"),
 });
 

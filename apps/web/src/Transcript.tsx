@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { errText, t, type Lang } from "./i18n";
 import type { Recording } from "./recorder";
+import { SceneBuilder } from "./SceneCard";
 
 type State = { kind: "loading" } | { kind: "done"; text: string } | { kind: "error"; code: string };
 
@@ -77,6 +78,8 @@ export function Transcript({ lang, recording }: { lang: Lang; recording: Recordi
           </label>
           <textarea id="idea" value={text} onChange={(e) => setText(e.target.value)} rows={4} maxLength={600} />
           <p className="hint-small">{t(lang, "sttEditHint")}</p>
+          {/* Neue Szene, sobald die Idee geändert wird */}
+          <SceneBuilder key={text} lang={lang} idea={text} />
         </>
       )}
       <details className="listen">

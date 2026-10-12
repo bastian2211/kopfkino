@@ -35,6 +35,9 @@ services:
       MONTHLY_CAP_EUR: ${MONTHLY_CAP_EUR:-20}
       # Spracherkennung (Mistral Voxtral)
       MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
+      # Szenen-KI (Claude) und zweite Prüfung (OpenAI Moderation)
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     depends_on:
       db:
         condition: service_healthy
