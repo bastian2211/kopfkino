@@ -29,12 +29,27 @@ Auf dem Server läuft bereits der Caddy des Freundebuchs auf Port 80/443. Er ist
 
 1. DNS-A-Record `kopfkino.steinhose.de` auf die Server-IP.
 2. Gemeinsames Netzwerk anlegen (einmalig): `docker network create edge`
-3. Freundebuch-Caddy ins Netzwerk `edge` hängen und dort diesen Eintrag ergänzen:
-   ```
-   kopfkino.steinhose.de {
-   	reverse_proxy kopfkino-web:80
-   }
-   ```
+3. Kopfkino beim Freundebuch-Caddy anmelden – **außerhalb** der Freundebuch-Dateien, damit ein Freundebuch-Update es nicht überschreibt:
+   - `/opt/edge/kopfkino.caddy` enthält den Eintrag:
+     ```
+     kopfkino.steinhose.de {
+     	reverse_proxy kopfkino-web:80
+     }
+     ```
+   - `/opt/freundebuch/docker-compose.override.yml` hängt den Caddy ins Netzwerk `edge` und blendet `/opt/edge` als `/etc/caddy/extra` ein:
+     ```yaml
+     services:
+       caddy:
+         networks: [default, edge]
+         volumes:
+           - /opt/edge:/etc/caddy/extra:ro
+     networks:
+       edge:
+         external: true
+     ```
+   - Am Ende der Freundebuch-`deploy/Caddyfile` (auch im Freundebuch-Projekt selbst!): `import /etc/caddy/extra/*.caddy`
+   - Danach in `/opt/freundebuch`: `docker compose up -d caddy`
+   - Prüfen: `curl -s -o /dev/null -w "%{http_code}\n" https://kopfkino.steinhose.de/api/health` → `200`
 4. Deploy-Benutzer anlegen, der Docker nutzen darf, und Verzeichnis anlegen:
    ```bash
    sudo mkdir -p /opt/kopfkino && sudo chown deploy:deploy /opt/kopfkino
