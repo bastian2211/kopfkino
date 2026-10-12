@@ -3,6 +3,7 @@ import { initialLang, saveLang, t, type Lang, type TextKey } from "./i18n";
 import { loadEngine, MAX_SECONDS, saveEngine, useRecorder, type Engine, type RecorderError } from "./recorder";
 import { Lab } from "./Lab";
 import { Transcript } from "./Transcript";
+import { JobView } from "./Job";
 import { Account, Login, Register } from "./Auth";
 import { api, type Me } from "./api";
 import { formatCredits, useBalance } from "./Credits";
@@ -35,6 +36,8 @@ export function App() {
   // undefined = wird geladen, null = nicht angemeldet
   const [me, setMe] = useState<Me | null | undefined>(undefined);
   const [invite, setInvite] = useState<string | null>(readInviteCode);
+  // Video aus Push-Nachricht oder Liste öffnen (?job=…)
+  const [openJob, setOpenJob] = useState<string | null>(() => new URLSearchParams(window.location.search).get("job"));
 
   const loadMe = () =>
     api<Me>("/api/me")
@@ -46,6 +49,11 @@ export function App() {
   }, []);
 
   const credits = useBalance(!!me);
+  useEffect(() => {
+    const reload = () => credits.reload();
+    window.addEventListener("kk:balance", reload);
+    return () => window.removeEventListener("kk:balance", reload);
+  }, [credits]);
 
   const afterAuth = () => {
     // Einladungscode aus der Adresse entfernen, damit er nicht im Verlauf bleibt
@@ -131,6 +139,10 @@ export function App() {
             setView("home");
           }}
           onBalanceChange={credits.reload}
+          onOpenJob={(id) => {
+            setOpenJob(id);
+            setView("home");
+          }}
           onLogout={() => {
             setMe(null);
             setView("home");
@@ -140,6 +152,20 @@ export function App() {
         <Lab lang={lang} engine={engine} onEngine={setEngine} onBack={() => setView("home")} />
       ) : (
         <section className="center">
+          {openJob && (
+            <div className="playback transcript">
+              <button
+                className="back"
+                onClick={() => {
+                  setOpenJob(null);
+                  window.history.replaceState(null, "", "/");
+                }}
+              >
+                × {t(lang, "close")}
+              </button>
+              <JobView lang={lang} jobId={openJob} key={openJob} />
+            </div>
+          )}
           <p className="claim">{t(lang, "claim")}</p>
           {credits.balance !== null && (
             <button className="creditpill" onClick={() => setView("account")}>

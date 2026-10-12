@@ -718,3 +718,63 @@ h2.section {
 .btn:disabled {
   opacity: 0.55;
 }
+
+/* Video-Auftrag */
+.job {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.job p {
+  margin: 0;
+}
+.clapper {
+  font-size: 56px;
+  text-align: center;
+  animation: clap 1.2s infinite ease-in-out;
+}
+@keyframes clap {
+  0%,
+  100% {
+    transform: rotate(-8deg);
+  }
+  50% {
+    transform: rotate(8deg) scale(1.08);
+  }
+}
+.player {
+  position: relative;
+  border: 3px solid var(--ink);
+  border-radius: 18px;
+  overflow: hidden;
+  background: #000;
+  aspect-ratio: 9 / 16;
+  max-height: 70vh;
+  margin: 0 auto;
+}
+.player video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+.ai-label {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: rgba(43, 29, 58, 0.8);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 8px;
+  pointer-events: none;
+}
+.linkrow {
+  all: unset;
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  cursor: pointer;
+  gap: 10px;
+}

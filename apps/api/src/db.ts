@@ -164,6 +164,37 @@ const MIGRATIONS: { id: string; sql: string }[] = [
       create index scenes_user_idx on scenes(user_id, created_at desc);
     `,
   },
+  {
+    id: "006_video_jobs",
+    sql: `
+      -- Video-Aufträge. Status: queued → running → done | failed. Datei liegt im Video-Ordner.
+      create table video_jobs (
+        id uuid primary key default gen_random_uuid(),
+        user_id uuid not null references users(id) on delete cascade,
+        scene_id uuid not null references scenes(id) on delete cascade,
+        client_key uuid not null,
+        status text not null default 'queued' check (status in ('queued', 'running', 'done', 'failed')),
+        reservation_id uuid not null references reservations(id),
+        provider text not null,
+        model text not null,
+        seconds integer not null,
+        operation text,
+        error_code text,
+        error_detail text,
+        file_name text,
+        file_bytes integer,
+        cost_eur numeric(12, 6),
+        created_at timestamptz not null default now(),
+        started_at timestamptz,
+        finished_at timestamptz,
+        -- Videos werden 30 Tage nach Fertigstellung gelöscht (Löschjob: Schritt 8)
+        expires_at timestamptz,
+        unique (user_id, client_key)
+      );
+      create index video_jobs_status_idx on video_jobs(status) where status in ('queued', 'running');
+      create index video_jobs_user_idx on video_jobs(user_id, created_at desc);
+    `,
+  },
 ];
 
 export async function migrate(db: Db, log: (msg: string) => void = console.log): Promise<void> {

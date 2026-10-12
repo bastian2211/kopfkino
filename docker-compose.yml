@@ -38,6 +38,10 @@ services:
       # Szenen-KI (Claude) und zweite Prüfung (OpenAI Moderation)
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      # Video-Erzeugung (Google Veo über die Gemini API)
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+    volumes:
+      - videos:/data/videos
     depends_on:
       db:
         condition: service_healthy
@@ -63,3 +67,4 @@ networks:
 
 volumes:
   db_data:
+  videos:

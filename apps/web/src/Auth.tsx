@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { api, errorCode, type Me } from "./api";
 import { errText, t, type Lang } from "./i18n";
 import { AdminUsers, BudgetCard, Statement } from "./Credits";
+import { MyVideos } from "./Job";
 
 // Anmelden mit Benutzername + Passwort
 export function Login({ lang, onDone }: { lang: Lang; onDone: () => void }) {
@@ -226,12 +227,14 @@ export function Account({
   onLogout,
   onBack,
   onBalanceChange,
+  onOpenJob,
 }: {
   lang: Lang;
   me: Me;
   onLogout: () => void;
   onBack: () => void;
   onBalanceChange: () => void;
+  onOpenJob: (id: string) => void;
 }) {
   const [refresh, setRefresh] = useState(0);
   const logout = async () => {
@@ -248,6 +251,7 @@ export function Account({
         @{me.username}
         {me.role === "admin" ? " · Admin" : ""}
       </p>
+      <MyVideos lang={lang} onOpen={onOpenJob} />
       <Statement lang={lang} refreshKey={refresh} />
       {me.role === "admin" && (
         <>

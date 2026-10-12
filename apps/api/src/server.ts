@@ -11,6 +11,11 @@ import { createStt } from "./adapters/stt.js";
 import { createSceneInterpreter } from "./adapters/scene.js";
 import { createModeration } from "./adapters/moderation.js";
 import { sceneRoutes } from "./routes/scenes.js";
+import { createVideoProvider } from "./adapters/video.js";
+import { jobRoutes } from "./routes/jobs.js";
+import { createVideoWorker } from "./video-worker.js";
+import { existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { createPusher, pushRoutes } from "./routes/push.js";
 
 export async function buildServer() {
@@ -78,13 +83,26 @@ export async function buildServer() {
   sceneRoutes(app, db, config, createSceneInterpreter(config), createModeration(config));
   pushRoutes(app, db, config, pusher);
 
-  return { app, config, db };
+  // Video: lokal ohne Schlüssel ein Ersatz, der das Testvideo der Web-App benutzt
+  const sample = fileURLToPath(new URL("../../web/public/test/kopfkino-test.mp4", import.meta.url));
+  const videoProvider = createVideoProvider(config, existsSync(sample) ? sample : undefined);
+  const worker = videoProvider
+    ? createVideoWorker({ db, config, provider: videoProvider, log: app.log, notify: pusher.sendToUser })
+    : null;
+  jobRoutes(app, db, config, videoProvider, worker);
+  app.addHook("onClose", async () => {
+    await worker?.stop();
+  });
+
+  return { app, config, db, worker };
 }
 
 const isEntry = import.meta.url === `file://${process.argv[1]}`;
 if (isEntry) {
-  const { app, config, db } = await buildServer();
+  const { app, config, db, worker } = await buildServer();
   await migrate(db, (m) => app.log.info(m));
+  worker?.start();
+  if (!worker) app.log.warn("Video-Erzeugung aus (kein GEMINI_API_KEY)");
   const shutdown = async (signal: string) => {
     app.log.info(`${signal} empfangen, fahre herunter`);
     await app.close();

@@ -35,6 +35,12 @@ const schema = z.object({
   OPENAI_API_KEY: z.preprocess(emptyToUndefined, z.string().optional()),
   // Video: Veo 3.1 Lite 720p laut https://ai.google.dev/gemini-api/docs/pricing 0,05 $/s
   VIDEO_USD_PER_SEC: z.coerce.number().positive().default(0.05),
+  // Video-Erzeugung (Google Veo über die Gemini API) – Doku: https://ai.google.dev/gemini-api/docs/veo
+  GEMINI_API_KEY: z.preprocess(emptyToUndefined, z.string().optional()),
+  VIDEO_MODEL: z.string().default("veo-3.1-lite-generate-preview"),
+  VIDEO_DIR: z.string().default("/data/videos"),
+  // Wie viele Videos gleichzeitig beim Anbieter laufen dürfen (alle Nutzer zusammen)
+  VIDEO_MAX_PARALLEL: z.coerce.number().int().min(1).max(5).default(2),
   VIDEO_SECONDS: z.coerce.number().int().min(4).max(8).default(6),
   VAPID_SUBJECT: z.string().default("mailto:admin@steinhose.de"),
 });

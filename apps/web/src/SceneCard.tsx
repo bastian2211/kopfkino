@@ -2,6 +2,7 @@ import { useState } from "react";
 import { api, errorCode } from "./api";
 import { formatCredits } from "./Credits";
 import { errText, t, type Lang } from "./i18n";
+import { balanceChanged, JobView, type Job } from "./Job";
 
 type SceneOk = {
   id: string;
@@ -29,11 +30,35 @@ type SceneRejected = {
 
 export type SceneResponse = SceneOk | SceneRejected;
 
-type State = { kind: "idle" } | { kind: "loading" } | { kind: "error"; code: string } | { kind: "done"; data: SceneResponse };
+type State =
+  | { kind: "idle" }
+  | { kind: "loading" }
+  | { kind: "error"; code: string }
+  | { kind: "done"; data: SceneResponse }
+  | { kind: "job"; job: Job };
 
 // Knopf „Szene bauen“ + Ergebnis-Karte. Wird zurückgesetzt, sobald sich die Idee ändert (key im Aufrufer).
 export function SceneBuilder({ lang, idea }: { lang: Lang; idea: string }) {
   const [state, setState] = useState<State>({ kind: "idle" });
+  // Ein Schlüssel pro Szene: doppeltes Tippen erzeugt nur einen Auftrag
+  const [jobKey] = useState(() => crypto.randomUUID());
+  const [starting, setStarting] = useState(false);
+  const [jobError, setJobError] = useState<string | null>(null);
+
+  const createVideo = async (sceneId: string, credits: number) => {
+    if (!window.confirm(t(lang, "jobConfirm").replace("{n}", String(credits)))) return;
+    setStarting(true);
+    setJobError(null);
+    try {
+      const job = await api<Job>("/api/jobs", { body: { sceneId, key: jobKey } });
+      balanceChanged();
+      setState({ kind: "job", job });
+    } catch (err) {
+      setJobError(errText(lang, errorCode(err)));
+    } finally {
+      setStarting(false);
+    }
+  };
 
   const build = async () => {
     setState({ kind: "loading" });
@@ -68,6 +93,8 @@ export function SceneBuilder({ lang, idea }: { lang: Lang; idea: string }) {
       </p>
     );
   }
+
+  if (state.kind === "job") return <JobView lang={lang} jobId={state.job.id} initial={state.job} />;
 
   const d = state.data;
   if (d.status === "rejected") {
@@ -120,8 +147,13 @@ export function SceneBuilder({ lang, idea }: { lang: Lang; idea: string }) {
       </div>
       {!enough && <p className="err">{t(lang, "sceneNotEnough")}</p>}
       {!d.budgetOk && <p className="err">{errText(lang, "budget_exhausted")}</p>}
-      <button className="btn btn--coral" disabled>
-        {t(lang, "sceneGenerateSoon")}
+      {jobError && <p className="err">{jobError}</p>}
+      <button
+        className="btn btn--coral"
+        disabled={!enough || !d.budgetOk || starting}
+        onClick={() => createVideo(d.id, d.estimate.credits)}
+      >
+        {starting ? "…" : `🎥 ${t(lang, "sceneGenerate")} · ${formatCredits(d.estimate.credits, lang)} Credits`}
       </button>
       <p className="hint-small">{t(lang, "sceneCostHint")}</p>
     </div>

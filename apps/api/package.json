@@ -8,6 +8,7 @@
     "test:ledger": "NODE_ENV=test tsx test/ledger.test.mts",
     "test:stt": "NODE_ENV=test tsx test/stt.test.mts",
     "test:scenes": "NODE_ENV=test tsx test/scenes.test.mts",
+    "test:video": "NODE_ENV=test tsx test/video.test.mts",
     "dev": "tsx watch src/server.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",

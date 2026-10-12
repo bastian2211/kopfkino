@@ -15,6 +15,8 @@ COPY --from=build /app/apps/api/dist ./dist
 COPY --from=build /app/apps/api/package.json ./package.json
 ARG APP_VERSION=dev
 ENV APP_VERSION=$APP_VERSION
+# Ordner für erzeugte Videos (wird als Volume eingehängt, gehört dem node-Nutzer)
+RUN mkdir -p /data/videos && chown node:node /data/videos
 USER node
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
